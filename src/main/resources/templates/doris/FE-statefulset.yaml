@@ -1,9 +1,9 @@
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: {{.Release.Name}}-doris-fe
+  name: {{doris.clusterName}}-doris-fe
   labels:
-    app: {{.Release.Name}}-doris-fe
+    app: {{doris.clusterName}}-doris-fe
 spec:
   replicas: 1
   volumeClaimTemplates:
@@ -18,24 +18,30 @@ spec:
   serviceName: doris-fe-headless
   selector:
     matchLabels:
-      app: {{.Release.Name}}-doris-fe
+      app: {{doris.clusterName}}-doris-fe
   template:
     metadata:
       labels:
-        app: {{.Release.Name}}-doris-fe
+        app: {{doris.clusterName}}-doris-fe
     spec:
       volumes:
         - name: doris-conf
           configMap:
-            name: {{.Release.Name}}-doris-configmap
+            name: {{doris.clusterName}}-doris-configmap
         - name: doris-script
           configMap:
-              name: {{.Release.Name}}-doris-script-configmap
+              name: {{doris.clusterName}}-doris-script-configmap
               defaultMode: 0744
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
-      {{ toYaml .Values.fe.nodeSelector | indent 8 }}
+      <%
+      for(entry in doris.dorisFeConfig.nodeSelectors){
+      %>
+        "{{entry.key}}" : "{{entry.value}}"
+      <% } %>
+      
+      
       containers:
         - name: doris-fe
           env:
@@ -45,7 +51,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: {{.Values.fe.image}}
+          image: {{doris.dorisFeConfig.dockerImage}}
           imagePullPolicy: Always
           command: [ "/bin/bash", "-ce", "/opt/script/fe_bootstrap.sh" ]
           volumeMounts:
@@ -59,19 +65,19 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/bootstrap
-              port: {{.Values.fe.http_port}}
+              port: {{doris.dorisFeConfig.httpPort}}
             initialDelaySeconds: 300
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           ports:
-            - containerPort: {{.Values.fe.http_port}}
+            - containerPort: {{doris.dorisFeConfig.httpPort}}
               protocol: TCP
-            - containerPort: {{.Values.fe.rpc_port}}
+            - containerPort: {{doris.dorisFeConfig.rpcPort}}
               protocol: TCP
-            - containerPort: {{.Values.fe.query_port}}
+            - containerPort: {{doris.dorisFeConfig.queryPort}}
               protocol: TCP
-            - containerPort: {{.Values.fe.edit_log_port}}
+            - containerPort: {{doris.dorisFeConfig.editLogPort}}
               protocol: TCP
           resources:
             limits:

@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{.Release.Name}}-doris-be
+  name: {{doris.clusterName}}-doris-be
   labels:
-    app: {{.Release.Name}}-doris-be
+    app: {{doris.clusterName}}-doris-be
 spec:
-  replicas: {{.Values.be.replicas}}
+  replicas: {{doris.dorisBeConfig.replicas}}
   volumeClaimTemplates:
     - metadata:
         name: pvc-doris-be
@@ -18,22 +18,26 @@ spec:
   serviceName: doris-be-headless
   selector:
     matchLabels:
-      app: {{.Release.Name}}-doris-be
+      app: {{doris.clusterName}}-doris-be
   template:
     metadata:
       labels:
-        app: {{.Release.Name}}-doris-be
+        app: {{doris.clusterName}}-doris-be
     spec:
       nodeSelector:
-      {{ toYaml .Values.be.nodeSelector | indent 8 }}
+        <%
+        for(entry in doris.dorisBeConfig.nodeSelectors){
+        %>
+        "{{entry.key}}": "{{entry.value}}"
+        <% } %>
       volumes:
         - name: doris-script
           configMap:
-            name: {{.Release.Name}}-doris-script-configmap
+            name: {{doris.clusterName}}-doris-script-configmap
             defaultMode: 0744
         - name: doris-conf
           configMap:
-            name: {{.Release.Name}}-doris-configmap
+            name: {{doris.clusterName}}-doris-configmap
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
@@ -49,27 +53,27 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: {{.Values.be.image}}
+          image: {{doris.dorisBeConfig.dockerImage}}
           imagePullPolicy: Always
           command: [ "/bin/bash", "-ce", "/opt/script/be_bootstrap.sh  " ]
           livenessProbe:
             httpGet:
               path: /api/health
-              port: {{.Values.be.webserver_port}}
+              port: {{doris.dorisBeConfig.webserverPort}}
             initialDelaySeconds: 300
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           ports:
-            - containerPort: {{.Values.be.be_port}}
+            - containerPort: {{doris.dorisBeConfig.bePort}}
               protocol: TCP
             - containerPort: 9070
               protocol: TCP
-            - containerPort: {{.Values.be.webserver_port}}
+            - containerPort: {{doris.dorisBeConfig.webserverPort}}
               protocol: TCP
-            - containerPort: {{.Values.be.heartbeat_service_port}}
+            - containerPort: {{doris.dorisBeConfig.heartBeatPort}}
               protocol: TCP
-            - containerPort: {{.Values.be.brpc_port}}
+            - containerPort: {{doris.dorisBeConfig.brpcPort}}
               protocol: TCP
           resources:
             limits:

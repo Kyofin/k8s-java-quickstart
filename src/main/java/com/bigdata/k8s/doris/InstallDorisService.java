@@ -5,6 +5,7 @@ import com.bigdata.k8s.doris.config.DorisBeConfig;
 import com.bigdata.k8s.doris.config.DorisClusterConfig;
 import com.bigdata.k8s.doris.config.DorisFeConfig;
 import com.bigdata.k8s.util.LoggerUtils;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -19,12 +20,18 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.function.Consumer;
 
 @Service
 public class InstallDorisService {
 
     public static final String RENDER_OUTPUT_PATH = "/Users/huzekang/study/k8s-java-quickstart/render_out/";
+    public static final String DORIS_FE_LABEL = "doris-fe";
+    public static final String DORIS_FE_LABEL_VALUE = "true";
+    public static final String CLUSTER_NAME_LABEL = "cluster-name";
+    public static final String DORIS_BE_LABEL = "doris-be";
+    public static final String DORIS_BE_LABEL_VALUE = "true";
 
     public void handle() {
         String clusterName = "pingdata";
@@ -36,13 +43,14 @@ public class InstallDorisService {
         taskLogger.info("开始安装doris。。。。");
         try (KubernetesClient client = new DefaultKubernetesClient()) {
             // 选择主机安装fe （fl001）
-            Lists.newArrayList("fl001").forEach(new Consumer<String>() {
+            List<String> feInstallHosts = Lists.newArrayList("fl001");
+            feInstallHosts.forEach(new Consumer<String>() {
                 @Override
                 public void accept(String node) {
                     client.nodes().withName(node)
                             .edit()
                             .editMetadata()
-                            .addToLabels("doris-fe", "true").addToLabels("cluster-name", clusterName)
+                            .addToLabels(DORIS_FE_LABEL, DORIS_FE_LABEL_VALUE).addToLabels(CLUSTER_NAME_LABEL, clusterName)
                             .endMetadata()
                             .done();
                 }
@@ -50,13 +58,14 @@ public class InstallDorisService {
 
 
             // 选择主机安装be（fl001,fl002,fl003）
-            Lists.newArrayList("fl001", "fl002", "fl003").forEach(new Consumer<String>() {
+            List<String> beInstallHosts = Lists.newArrayList("fl001", "fl002", "fl003");
+            beInstallHosts.forEach(new Consumer<String>() {
                 @Override
                 public void accept(String node) {
                     client.nodes().withName(node)
                             .edit()
                             .editMetadata()
-                            .addToLabels("doris-be", "true").addToLabels("cluster-name", clusterName)
+                            .addToLabels(DORIS_BE_LABEL, DORIS_BE_LABEL_VALUE).addToLabels(CLUSTER_NAME_LABEL, clusterName)
                             .endMetadata()
                             .done();
                 }
@@ -66,6 +75,8 @@ public class InstallDorisService {
             // 服务端口选择
             DorisBeConfig dorisBEConfig = DorisBeConfig.builder()
                     .dockerImage("registry.mufankong.top/bigdata/doris-be:1.1.0")
+                    .replicas(beInstallHosts.size())
+                    .nodeSelectors(ImmutableMap.of(DORIS_BE_LABEL, DORIS_BE_LABEL_VALUE,CLUSTER_NAME_LABEL,clusterName))
                     .bePort(9060)
                     .heartBeatPort(9050)
                     .webserverPort(8041)
@@ -75,7 +86,9 @@ public class InstallDorisService {
                     .httpPort(8030)
                     .rpcPort(9020)
                     .queryPort(9030)
-                    .editLogPort(9010).build();
+                    .editLogPort(9010)
+                    .nodeSelectors(ImmutableMap.of(DORIS_FE_LABEL, DORIS_FE_LABEL_VALUE,CLUSTER_NAME_LABEL,clusterName))
+                    .build();
             DorisClusterConfig dorisClusterConfig = DorisClusterConfig.builder()
                     .clusterName(clusterName)
                     .dorisBeConfig(dorisBEConfig)
@@ -86,6 +99,8 @@ public class InstallDorisService {
             // 根据安装清单生成k8s资源文件
             renderDorisConfig("doris-configmap.yaml", "doris", dorisClusterConfig);
             renderDorisConfig("doris-script-confimap.yaml", "doris", dorisClusterConfig);
+            renderDorisConfig("FE-statefulset.yaml", "doris", dorisClusterConfig);
+            renderDorisConfig("BE-statefulset.yaml", "doris", dorisClusterConfig);
             // 生成be的properties文件内容
             // 生成fe的properties文件内容
             // 生成fe启动脚本的内容
