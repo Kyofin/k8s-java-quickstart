@@ -1,32 +1,31 @@
 package com.bigdata.k8s.doris;
 
-import cn.hutool.core.io.IoUtil;
-import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.io.FileUtil;
+import com.bigdata.k8s.doris.config.DorisBeConfig;
+import com.bigdata.k8s.doris.config.DorisClusterConfig;
+import com.bigdata.k8s.doris.config.DorisFeConfig;
 import com.bigdata.k8s.util.LoggerUtils;
 import com.google.common.collect.Lists;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import freemarker.template.TemplateException;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import org.beetl.core.Configuration;
+import org.beetl.core.GroupTemplate;
+import org.beetl.core.Template;
+import org.beetl.core.resource.ClasspathResourceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 
 @Service
 public class InstallDorisService {
+
+    public static final String RENDER_OUTPUT_PATH = "/Users/huzekang/study/k8s-java-quickstart/render_out/";
+
     public void handle() {
         String clusterName = "pingdata";
         // custom logger统一日志生成到文件。。。
@@ -51,7 +50,7 @@ public class InstallDorisService {
 
 
             // 选择主机安装be（fl001,fl002,fl003）
-            Lists.newArrayList("fl001","fl002","fl003").forEach(new Consumer<String>() {
+            Lists.newArrayList("fl001", "fl002", "fl003").forEach(new Consumer<String>() {
                 @Override
                 public void accept(String node) {
                     client.nodes().withName(node)
@@ -65,8 +64,28 @@ public class InstallDorisService {
 
             // 用户调优参数
             // 服务端口选择
-            // 存储安装清单到数据库
+            DorisBeConfig dorisBEConfig = DorisBeConfig.builder()
+                    .dockerImage("registry.mufankong.top/bigdata/doris-be:1.1.0")
+                    .bePort(9060)
+                    .heartBeatPort(9050)
+                    .webserverPort(8041)
+                    .brpcPort(8060).build();
+            DorisFeConfig dorisFEConfig = DorisFeConfig.builder()
+                    .dockerImage("registry.mufankong.top/bigdata/doris-fe:1.1.0")
+                    .httpPort(8030)
+                    .rpcPort(9020)
+                    .queryPort(9030)
+                    .editLogPort(9010).build();
+            DorisClusterConfig dorisClusterConfig = DorisClusterConfig.builder()
+                    .clusterName(clusterName)
+                    .dorisBeConfig(dorisBEConfig)
+                    .dorisFeConfig(dorisFEConfig).build();
+
+            // todo 存储安装清单到数据库
+
             // 根据安装清单生成k8s资源文件
+            renderDorisConfig("doris-configmap.yaml", "doris", dorisClusterConfig);
+            renderDorisConfig("doris-script-confimap.yaml", "doris", dorisClusterConfig);
             // 生成be的properties文件内容
             // 生成fe的properties文件内容
             // 生成fe启动脚本的内容
@@ -91,26 +110,25 @@ public class InstallDorisService {
         taskLogger.info("完成安装doris。。。。");
     }
 
-    public void render() throws URISyntaxException, IOException, TemplateException {
-        // 创建配置类
-        Configuration configuration = new Configuration(Configuration.getVersion());
-        // 设置模板路径 toURI()防止路径出现空格
-        String classpath = this.getClass().getResource("/").toURI().getPath();
-        configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/doris"));
-        // 设置字符集
-        configuration.setDefaultEncoding("utf-8");
-        // 加载模板
-        Template template = configuration.getTemplate("demo1.ftl");
-        // 数据模型
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "静态化测试");
-        // 静态化
-        String content = FreeMarkerTemplateUtils.processTemplateIntoString(template, map);
-        // 打印静态化内容
-        System.out.println(content);
-        InputStream inputStream = IoUtil.toStream(content.getBytes(StandardCharsets.UTF_8));
-        // 输出文件
-        FileOutputStream fileOutputStream = new FileOutputStream(new File("demo1.html"));
-        IoUtil.copy(inputStream, fileOutputStream);
+    public void renderDorisConfig(String templateName, String varName, Object renderObj) {
+
+        try {
+            ClasspathResourceLoader resourceLoader = new ClasspathResourceLoader("templates/doris");
+            Configuration cfg = Configuration.defaultConfiguration();
+            GroupTemplate gt = new GroupTemplate(resourceLoader, cfg);
+            Template t = gt.getTemplate(templateName);
+            t.binding(varName, renderObj);
+//            String str = t.render();
+//            System.out.println(str);
+            String path = RENDER_OUTPUT_PATH + "/doris/";
+            if (!FileUtil.exist(path)) {
+                FileUtil.mkdir(path);
+            }
+            t.renderTo(new FileOutputStream(path + templateName));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

@@ -1,0 +1,2 @@
+集群名：{{doris.clusterName}}
+be端口：{{doris.dorisBeConfig.bePort}}

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{.Release.Name}}-doris-configmap
+  name: {{doris.clusterName}}-doris-configmap
   labels:
     app: doris
 data:
@@ -12,10 +12,10 @@ data:
     sys_log_level = INFO
     
     # ports for admin, web, heartbeat service 
-    be_port = {{.Values.be.be_port}}
-    webserver_port = {{.Values.be.webserver_port}}
-    heartbeat_service_port = {{.Values.be.heartbeat_service_port}}
-    brpc_port = {{.Values.be.brpc_port}}
+    be_port = {{doris.dorisBeConfig.bePort}}
+    webserver_port = {{doris.dorisBeConfig.webserverPort}}
+    heartbeat_service_port = {{doris.dorisBeConfig.heartBeatPort}}
+    brpc_port = {{doris.dorisBeConfig.brpcPort}}
     
     # Choose one if there are more than one ip except loopback address. 
     # Note that there should at most one ip match this list.
@@ -67,10 +67,10 @@ data:
     # Default value is ${DORIS_HOME}/doris-meta
     # meta_dir = ${DORIS_HOME}/doris-meta
   
-    http_port = {{.Values.fe.http_port}}
-    rpc_port = {{.Values.fe.rpc_port}}
-    query_port = {{.Values.fe.query_port}}
-    edit_log_port = {{.Values.fe.edit_log_port}}
+    http_port = {{doris.dorisFeConfig.httpPort}}
+    rpc_port = {{doris.dorisFeConfig.rpcPort}}
+    query_port = {{doris.dorisFeConfig.queryPort}}
+    edit_log_port = {{doris.dorisFeConfig.editLogPort}}
     mysql_service_nio_enabled = true
     
     # Choose one if there are more than one ip except loopback address. 
