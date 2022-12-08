@@ -32,7 +32,7 @@ data:
       export SQL="ALTER SYSTEM ADD BACKEND '"$BE_IPADDRESS":{{doris.dorisBeConfig.heartBeatPort}}'"
       echo $SQL > tmp.sql
 
-      mysql -h {{doris.clusterName}}-doris-fe-svc -P {{doris.dorisFeConfig.queryPort}} -u root < tmp.sql
+      mysql -h {{doris.dorisFeConfig.registerFeIp}} -P {{doris.dorisFeConfig.queryPort}} -u root < tmp.sql
 
       echo "doris be节点注册成功......."
       touch $_BE_REGISTER

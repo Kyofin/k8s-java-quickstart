@@ -13,6 +13,7 @@ public class DorisFeConfig {
     private int queryPort;
     private int editLogPort;
     private String dockerImage;
+    private String registerFeIp;
     private Map<String, String> nodeSelectors;
 
 }
