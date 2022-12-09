@@ -1,0 +1,38 @@
+name: steven
+phone: 18********5
+company: "***广州***"
+shell: |
+  #!/bin/bash
+    if [ $# -eq 0 ];then
+      echo "Usage: $0 加上参数"
+    fi
+    for i
+    do
+      echo $i
+    done
+
+teamMember:
+  - 于**
+  - 徐**
+  - 索**
+hobbies:
+  foods:
+    - 黄焖鸡米饭
+    - 黄焖排骨
+    - 五花肉
+    - 热干面
+  sports:
+    - 羽毛球
+    - 骑车
+    - 跑步
+  works:
+    - coding
+    - repairComputer
+workingSkills:
+  - Java
+  - Hadoop
+  - hive
+  - spark
+  - flink
+  - kafka
+  - HBASE
